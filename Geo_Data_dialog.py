@@ -94,9 +94,15 @@ class GeoDataDialog(QtWidgets.QDialog, FORM_CLASS):
         headerItem  = QTreeWidgetItem()
         item    = QTreeWidgetItem()
         paths = []
+        group = ""
 
         current_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         sources_dir = os.path.join(current_dir, 'data_sources')
+
+        activegroup = name.split("_")
+
+        if activegroup ==group: createChild
+            else: createNewGroup + createChild + group = activegroup
 
         for name in os.listdir(sources_dir):
             if os.path.isdir(os.path.join(sources_dir, name)):
