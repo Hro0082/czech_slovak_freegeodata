@@ -6,231 +6,134 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>807</width>
-    <height>557</height>
+    <width>760</width>
+    <height>550</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>GeoData</string>
   </property>
-  <widget class="QDialogButtonBox" name="button_box">
+  <widget class="QPushButton" name="pushButtonLoadData">
    <property name="geometry">
     <rect>
-     <x>410</x>
-     <y>500</y>
-     <width>341</width>
-     <height>32</height>
+     <x>560</x>
+     <y>20</y>
+     <width>171</width>
+     <height>25</height>
     </rect>
    </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
+   <property name="text">
+    <string>Load Selected Data</string>
    </property>
-   <property name="standardButtons">
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+  </widget>
+  <widget class="QTreeWidget" name="treeWidgetSources">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>20</y>
+     <width>521</width>
+     <height>511</height>
+    </rect>
+   </property>
+   <property name="columnCount">
+    <number>1</number>
+   </property>
+   <attribute name="headerVisible">
+    <bool>false</bool>
+   </attribute>
+   <column>
+    <property name="text">
+     <string notr="true">1</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QPushButton" name="pushButtonLoadRuianPlugin">
+   <property name="geometry">
+    <rect>
+     <x>560</x>
+     <y>60</y>
+     <width>171</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Import data from RUIAN</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>10</y>
-     <width>181</width>
-     <height>41</height>
+     <x>560</x>
+     <y>100</y>
+     <width>171</width>
+     <height>261</height>
     </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Ubuntu Condensed</family>
-     <pointsize>16</pointsize>
-     <weight>75</weight>
-     <italic>true</italic>
-     <bold>true</bold>
-    </font>
    </property>
    <property name="text">
-    <string>GeoData plugin</string>
+    <string>The plugin allows to append selected layers into the map and also if the layer is part of the service (WMS/XYZ) its source is append into the Browser panel of the QGIS.
+
+The plugin allows also to open RUIAN plugin dialog for import data from RUIAN service.</string>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
    </property>
   </widget>
-  <widget class="QTabWidget" name="tabWidget">
+  <widget class="QPushButton" name="pushButtonAbout">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>80</y>
-     <width>761</width>
-     <height>401</height>
+     <x>580</x>
+     <y>460</y>
+     <width>131</width>
+     <height>71</height>
     </rect>
    </property>
-   <property name="currentIndex">
-    <number>3</number>
+   <property name="icon">
+    <iconset>
+     <normaloff>icons/cropped-opengeolabs-logo-small.png</normaloff>icons/cropped-opengeolabs-logo-small.png</iconset>
    </property>
-   <widget class="QWidget" name="tabServices">
-    <attribute name="title">
-     <string>Services</string>
-    </attribute>
-    <widget class="QListWidget" name="listWidget">
-     <property name="geometry">
-      <rect>
-       <x>20</x>
-       <y>20</y>
-       <width>361</width>
-       <height>311</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="pushbutton_print">
-     <property name="geometry">
-      <rect>
-       <x>530</x>
-       <y>30</y>
-       <width>89</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Load Services</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QWidget" name="tabRuian">
-    <attribute name="title">
-     <string>RUIAN</string>
-    </attribute>
-    <widget class="QPushButton" name="pushButtonLoadRuianPlugin">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>30</y>
-       <width>171</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Import data from RUIAN</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="labelRuianError">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>80</y>
-       <width>691</width>
-       <height>17</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QWidget" name="tabOther">
-    <attribute name="title">
-     <string>Other sources</string>
-    </attribute>
-    <widget class="QListWidget" name="listWidgetOtherDataSources">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>30</y>
-       <width>361</width>
-       <height>311</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="pushButtonLoadOtherDataSources">
-     <property name="geometry">
-      <rect>
-       <x>448</x>
-       <y>40</y>
-       <width>221</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Load Other Sources</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QWidget" name="tabTesting">
-    <attribute name="title">
-     <string>Testing</string>
-    </attribute>
-    <widget class="QPushButton" name="pushbutton_test">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>30</y>
-       <width>89</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Add WMS</string>
-     </property>
-    </widget>
-    <widget class="QTreeWidget" name="treeWidgetSources">
-     <property name="geometry">
-      <rect>
-       <x>200</x>
-       <y>80</y>
-       <width>511</width>
-       <height>271</height>
-      </rect>
-     </property>
-     <column>
-      <property name="text">
-       <string notr="true">1</string>
-      </property>
-     </column>
-    </widget>
-    <widget class="QPushButton" name="pushButtonLoadTree">
-     <property name="geometry">
-      <rect>
-       <x>370</x>
-       <y>30</y>
-       <width>161</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Load Sources into Tree</string>
-     </property>
-    </widget>
-   </widget>
+   <property name="iconSize">
+    <size>
+     <width>80</width>
+     <height>80</height>
+    </size>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelRuianError">
+   <property name="geometry">
+    <rect>
+     <x>560</x>
+     <y>380</y>
+     <width>171</width>
+     <height>61</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonSourceOptions">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>580</x>
+     <y>340</y>
+     <width>121</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::StrongFocus</enum>
+   </property>
+   <property name="text">
+    <string>Source Options</string>
+   </property>
   </widget>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>button_box</sender>
-   <signal>accepted()</signal>
-   <receiver>GeoDataDialogBase</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>button_box</sender>
-   <signal>rejected()</signal>
-   <receiver>GeoDataDialogBase</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

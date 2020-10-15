@@ -25,6 +25,7 @@
 import os
 import configparser
 import sys
+import webbrowser
 
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
@@ -36,7 +37,7 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
 
 import importlib, inspect
-from .other_data_sources.source import Source
+from .data_sources.source import Source
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -49,137 +50,172 @@ class GeoDataDialog(QtWidgets.QDialog, FORM_CLASS):
         super(GeoDataDialog, self).__init__(parent)
         self.iface = iface
         self.setupUi(self)
-        self.pushbutton_print.clicked.connect(self.load_data_sources)
-        self.pushbutton_test.clicked.connect(self.load_wms)
-        self.pushButtonLoadOtherDataSources.clicked.connect(self.load_other_data_sources)
+        self.pushButtonAbout.setIcon(QIcon(os.path.join(os.path.dirname(__file__), "icons/cropped-opengeolabs-logo-small.png")))
+        self.pushButtonAbout.clicked.connect(self.showAbout)
         self.pushButtonLoadRuianPlugin.clicked.connect(self.load_ruian_plugin)
+        self.pushButtonLoadData.clicked.connect(self.load_data)
+        self.pushButtonSourceOptions.clicked.connect(self.show_source_options_dialog)
         self.data_sources = []
-        self.other_data_sources = []
-        self.pushButtonLoadTree.clicked.connect(self.load_sources_into_tree)
+        self.treeWidgetSources.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeWidgetSources.customContextMenuRequested.connect(self.open_context_menu)
+        self.load_sources_into_tree()
+        self.selectedSource = -1
 
-    def load_data_sources(self):
-        current_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-        sources_dir = os.path.join(current_dir, 'data_sources')
+    def get_url(self, config):
+        if config['general']['type'] == 'WMS':
+            # TODO check CRS? Maybe.
+            url = 'url=' + config['wms']['url']
+            layers = config['wms']['layers'].split(',')
+            for layer in layers:
+                url += "&layers=" + layer
+            styles = config['wms']['styles'].split(',')
+            for style in styles:
+                url += "&styles=" + style
+            url += "&" + config['wms']['params']
+            return url
 
-        paths = []
+        if config['general']['type'] == 'TMS':
+            return "type=xyz&url=" + config['tms']['url']
 
-        for name in os.listdir(sources_dir):
-            if os.path.isdir(os.path.join(sources_dir, name)):
-                paths.append(name)
-
-        config = configparser.ConfigParser()
-
-        index = 0
-        for path in paths:
-            config.read(os.path.join(sources_dir, path, 'metadata.ini'))
-            # print(config.sections())
-            # for key in config['gdal']:
-            #     print(key)
-            # print(config['gdal']['source_file'])
-            self.add_item_to_list(config['ui']['alias'], index)
-            # TODO check type of sources then add adequate prefix or parameters
-            self.data_sources.append(
-                {
-                    "alias": config['ui']['alias'],
-                    "url": "type=xyz&url=" + config['tms']['url']
-                }
-            )
-            index += 1
-            # self.wms_sources.append(config['gdal']['url=http://kaart.maaamet.ee/wms/alus&format=image/png&layers=MA-ALUS&styles=&crs=EPSG:3301'])
+    def load_data(self):
+        # print("LOAD DATA")
+        for data_source in self.data_sources:
+            # print(data_source)
+            if data_source['checked'] == "True":
+                if "WMS" in data_source['type'] or "TMS" in data_source['type']:
+                    self.add_layer(data_source)
+                    self.addSourceToBrowser(data_source)
+                if "PROC" in data_source['type']:
+                    if data_source['proc_class'] is not None:
+                        self.add_proc_data_source_layer(data_source)
 
     def load_sources_into_tree(self):
 
-        #tree widget and checkbox buttons
+        self.treeWidgetSources.itemChanged.connect(self.handleChanged)
+        self.treeWidgetSources.itemSelectionChanged.connect(self.handleSelected)
         tree    = self.treeWidgetSources
-        headerItem  = QTreeWidgetItem()
-        item    = QTreeWidgetItem()
         paths = []
-        group = ""
 
         current_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         sources_dir = os.path.join(current_dir, 'data_sources')
 
-        activegroup = name.split("_")
-
-        if activegroup ==group: createChild
-            else: createNewGroup + createChild + group = activegroup
-
         for name in os.listdir(sources_dir):
-            if os.path.isdir(os.path.join(sources_dir, name)):
+            if os.path.isdir(os.path.join(sources_dir, name)) and name[:2] != "__":
                 paths.append(name)
 
+        paths.sort()
         config = configparser.ConfigParser()
+        group = ""
 
         index = 0
+
         for path in paths:
             config.read(os.path.join(sources_dir, path, 'metadata.ini'))
-            parent = QTreeWidgetItem(tree)
-            parent.setText(0, "{}".format(path))
-            parent.setFlags(parent.flags()
+            current_group = path.split("_")[0]
+            if current_group != group:
+                group = current_group
+                parent = QTreeWidgetItem(tree)
+                parent.setText(0, current_group) # TODO read from metadata.ini (maybe)
+                parent.setFlags(parent.flags()
                   | Qt.ItemIsTristate | Qt.ItemIsUserCheckable)
-            for x in range(4):
-                child = QTreeWidgetItem(parent)
-                child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                child.setText(0, "{}".format(x))
+
+            url = ""
+            if "WMS" in config['general']['type'] or "TMS" in config['general']['type']:
+                url = self.get_url(config)
+
+            proc_class = None
+            if "PROC" in config['general']['type']:
+                proc_class = self.get_proc_class(path)
+
+            self.data_sources.append(
+                {
+                    "type": config['general']['type'],
+                    "alias": config['ui']['alias'],
+                    "url": url,
+                    "checked": config['ui']['checked'],
+                    "proc_class": proc_class
+                }
+            )
+            child = QTreeWidgetItem(parent)
+            child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
+            child.setText(0, config['ui']['alias'])
+            child.setIcon(0, QIcon(os.path.join(sources_dir, path, config['ui']['icon'])))
+            parent.setIcon(0, QIcon(os.path.join(sources_dir, path, config['ui']['icon'])))
+            child.setData(0, Qt.UserRole, index)
+            if config['ui']['checked'] == "True":
+                child.setCheckState(0, Qt.Checked)
+            else:
                 child.setCheckState(0, Qt.Unchecked)
-    
-    def add_QTreeWidget_to_list(self, label, index):
-        itemN = QtWidgets.QListWidgetItem()
-        widget = QtWidgets.QWidget()
-        widgetText = QtWidgets.QLabel(label)
-        widgetButton = QtWidgets.QPushButton("Add Layer")
-        widgetButton.clicked.connect(lambda: add_QTreeWidget_to_list(index))
-        widgetLayout = QtWidgets.QHBoxLayout()
-        widgetLayout.addWidget(widgetText)
-        widgetLayout.addWidget(widgetButton)
-        widgetLayout.addStretch()
-        widgetLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        widget.setLayout(widgetLayout)
-        itemN.setSizeHint(widget.sizeHint())
-        widget.show()
-        # Add widget to QListWidget funList
-        self.listWidgetOtherDataSources.addItem(itemN)
-        self.listWidgetOtherDataSources.setItemWidget(itemN, widget)
+            index += 1
 
-    def add_item_to_list(self, label, index):
-        itemN = QtWidgets.QListWidgetItem()
-        widget = QtWidgets.QWidget()
-        widgetText = QtWidgets.QLabel(label)
-        widgetButton = QtWidgets.QPushButton("Add Layer")
-        widgetButton.clicked.connect(lambda: self.add_layer(index))
-        widgetLayout = QtWidgets.QHBoxLayout()
-        widgetLayout.addWidget(widgetText)
-        widgetLayout.addWidget(widgetButton)
-        widgetLayout.addStretch()
-        widgetLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        widget.setLayout(widgetLayout)
-        itemN.setSizeHint(widget.sizeHint())
-        widget.show()
-        # Add widget to QListWidget funList
-        self.listWidget.addItem(itemN)
-        self.listWidget.setItemWidget(itemN, widget)
+    def handleSelected(self):
+        self.selectedSource = -1
+        self.pushButtonSourceOptions.setEnabled(False)
+        print(self.treeWidgetSources.selectedItems())
+        for item in self.treeWidgetSources.selectedItems():
+            if item.data(0, Qt.UserRole) is not None:
+                id = int(item.data(0, Qt.UserRole))
+                print(str(id))
+                if self.data_sources[id]['proc_class'].has_options_dialog():
+                    self.selectedSource = id
+                    self.pushButtonSourceOptions.setEnabled(True)
+                    print("HAS OPTIONS DIALOG")
 
-    def add_layer(self, index):
+    def handleChanged(self, item, column):
+        # Get his status when the check status changes.
+        if item.data(0, Qt.UserRole) is not None:
+            id = int(item.data(0, Qt.UserRole))
+            if item.checkState(column) == Qt.Checked:
+                # print("checked", item, item.text(column))
+                self.data_sources[id]['checked'] = "True"
+            if item.checkState(column) == Qt.Unchecked:
+                # print("unchecked", item, item.text(column))
+                self.data_sources[id]['checked'] = "False"
+            # print(item.data(0, Qt.UserRole))
+
+    def open_context_menu(self):
+        # TODO - if we want context menu
+        # https://wiki.python.org/moin/PyQt/Creating%20a%20context%20menu%20for%20a%20tree%20view
+        print("MENU")
+
+    def show_source_options_dialog(self):
+        if self.selectedSource >= 0:
+            self.data_sources[self.selectedSource]['proc_class'].show_options_dialog()
+
+    def add_layer(self, data_source):
         # print("Add Layer " + (self.wms_sources[index]))
         # rlayer = QgsRasterLayer(self.wms_sources[index], 'MA-ALUS', 'wms')
-        layer = QgsRasterLayer(self.data_sources[index]['url'], self.data_sources[index]['alias'], 'wms')
+        print(data_source['url'])
+        layer = QgsRasterLayer(data_source['url'], data_source['alias'], 'wms')
         # TODO check if the layer is valid
         QgsProject.instance().addMapLayer(layer)
 
-    def load_wms(self):
-        urlWithParams = 'url=http://kaart.maaamet.ee/wms/alus&format=image/png&layers=MA-ALUS&styles=&crs=EPSG:3301'
-        rlayer = QgsRasterLayer(urlWithParams, 'MA-ALUS', 'wms')
-        QgsProject.instance().addMapLayer(rlayer)
+    def get_proc_class(self, path):
+        current_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        current_module_name = os.path.splitext(os.path.basename(current_dir))[0]
+        module = importlib.import_module(".data_sources." + path + ".source", package=current_module_name)
+        for member in dir(module):
+            if member != 'Source':
+                handler_class = getattr(module, member)
+                # if member == 'SampleOne':
+                #     print("GPC")
+                #     print(handler_class)
+                #     print(inspect.isclass(handler_class))
+                #     print(issubclass(handler_class, Source))
+                if handler_class and inspect.isclass(handler_class) and issubclass(handler_class, Source):
+                    current_source = handler_class()
+                    return current_source
+        return None
 
-    def addToBrowser(self):
-        # Sources
-        sources = []
-        sources.append(["connections-xyz", "Google Maps", "", "", "", "https://mt1.google.com/vt/lyrs=m&x=%7Bx%7D&y=%7By%7D&z=%7Bz%7D", "", "19", "0"])
-        sources.append(["connections-xyz", "Stamen Terrain", "", "", "Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL",
-                        "http://tile.stamen.com/terrain/%7Bz%7D/%7Bx%7D/%7By%7D.png", "", "20", "0"])
-
-        # Add sources to browser
-        for source in sources:
+    def addSourceToBrowser(self, data_source):
+        source = None
+        if data_source['type'] == "TMS":
+            url = data_source['url'][13:]
+            source = ["connections-xyz", data_source['alias'], "", "", "", url, "", "19", "0"]
+        if data_source['type'] == "WMS":
+            url = data_source['url'][4:].split("&")[0]
+            source = ["connections-wms", data_source['alias'], "", "", "", url, "", "19", "0"]
+        if source != None:
             connectionType = source[0]
             connectionName = source[1]
             QSettings().setValue("qgis/%s/%s/authcfg" % (connectionType, connectionName), source[2])
@@ -190,52 +226,15 @@ class GeoDataDialog(QtWidgets.QDialog, FORM_CLASS):
             QSettings().setValue("qgis/%s/%s/zmax" % (connectionType, connectionName), source[7])
             QSettings().setValue("qgis/%s/%s/zmin" % (connectionType, connectionName), source[8])
 
-        # Update GUI
         iface.reloadConnections()
 
-    def load_other_data_sources(self):
-        # Used from https://stackoverflow.com/questions/3178285/list-classes-in-directory-python
-        self.other_data_sources = []
-        current_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-        current_module_name = os.path.splitext(os.path.basename(current_dir))[0]
-        sources_dir = os.path.join(current_dir, 'other_data_sources')
-        paths = [ name for name in os.listdir(sources_dir) if os.path.isdir(os.path.join(sources_dir, name)) ]
-        index = 0
-        for path in paths:
-            if not path.startswith("__"):
-                module = importlib.import_module(".other_data_sources." + path + ".source", package=current_module_name)
-                for member in dir(module):
-                    if member != 'Source':
-                        handler_class = getattr(module, member)
-                        if handler_class and inspect.isclass(handler_class) and issubclass(handler_class, Source):
-                            current_source = handler_class()
-                            self.other_data_sources.append(current_source)
-                            # TODO list all layers not just a sources
-                            self.add_other_data_source_item_to_list(current_source.get_metadata().name, index)
-                            index += 1
-
-    def add_other_data_source_item_to_list(self, label, index):
-        itemN = QtWidgets.QListWidgetItem()
-        widget = QtWidgets.QWidget()
-        widgetText = QtWidgets.QLabel(label)
-        widgetButton = QtWidgets.QPushButton("Add Layer")
-        widgetButton.clicked.connect(lambda: self.add_other_data_source_layer(index))
-        widgetLayout = QtWidgets.QHBoxLayout()
-        widgetLayout.addWidget(widgetText)
-        widgetLayout.addWidget(widgetButton)
-        widgetLayout.addStretch()
-        widgetLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        widget.setLayout(widgetLayout)
-        itemN.setSizeHint(widget.sizeHint())
-        widget.show()
-        # Add widget to QListWidget funList
-        self.listWidgetOtherDataSources.addItem(itemN)
-        self.listWidgetOtherDataSources.setItemWidget(itemN, widget)
-
-    def add_other_data_source_layer(self, index):
-        vector = self.other_data_sources[index].get_vector(0, self.get_extent(), self.get_epsg())
-        if vector is not None:
-            QgsProject.instance().addMapLayer(vector)
+    def add_proc_data_source_layer(self, data_source):
+        if data_source['type'] == "PROC_VEC":
+            layer = data_source['proc_class'].get_vector(self.get_extent(), self.get_epsg())
+        if data_source['type'] == "PROC_RAS":
+            layer = data_source['proc_class'].get_raster(self.get_extent(), self.get_epsg())
+        if layer is not None:
+            QgsProject.instance().addMapLayer(layer)
 
     def get_extent(self):
         return self.iface.mapCanvas().extent()
@@ -252,4 +251,10 @@ class GeoDataDialog(QtWidgets.QDialog, FORM_CLASS):
                 x.trigger()
 
         if not ruian_found:
-            self.labelRuianError.setText("This functionality requires RUIAN plugin")
+            self.labelRuianError.setText(QApplication.translate("GeoData","This functionality requires RUIAN plugin", None))
+
+    def showAbout(self):
+        try:
+            webbrowser.get().open("http://opengeolabs.cz")
+        except (webbrowser.Error):
+            self.iface.messageBar().pushMessage(QApplication.translate("GeoData", "Error", None), QApplication.translate("GeoData", "Can not find web browser to open page about", None), level=Qgis.Critical)
